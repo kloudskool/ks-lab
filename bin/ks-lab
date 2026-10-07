@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# ks-lab — KloudSkool Version Control labs.  https://github.com/kloudskool/ks-lab
+KS_VERSION="1.0.0"
+
+# Resolve the app folder (works when called through PATH or a symlink).
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; case $src in /*) ;; *) src="$d/$src";; esac; done
+KS_APP="$(cd -P "$(dirname "$src")/.." && pwd)"
+export KS_APP
+
+# shellcheck source=../lib/common.sh
+. "$KS_APP/lib/common.sh"
+# shellcheck source=../lib/files.sh
+. "$KS_APP/lib/files.sh"
+for f in "$KS_APP"/labs/*.sh; do . "$f"; done
+
+norm() {  # normalise a lab id: "4" -> "04", "C1" -> "c1", "break 3" handled by caller
+  local id; id=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+  case "$id" in
+    [0-9]) id="0$id" ;;
+    t[0-9]) id="t0${id#t}" ;;
+    break-[0-9]|break-[0-9][0-9]) id="t$(printf '%02d' "${id#break-}")" ;;
+  esac
+  printf '%s' "$id"
+}
+has_fn() { type "$1" >/dev/null 2>&1; }
+
+usage() {
+cat <<EOF
+
+ks-lab $KS_VERSION — KloudSkool Version Control labs
+
+  ks-lab start <lab>      Set up the starting state for a lab      e.g. ks-lab start 04
+  ks-lab check <lab>      Check your work and get your completion code
+  ks-lab hint <lab>       Show the next hint (one at a time)
+  ks-lab solution <lab>   Walkthrough, unlocked after two checks
+  ks-lab event <id>       Trigger a mid-lab event when the lab tells you to
+  ks-lab break <n>        Start Break Room scenario n (1-12)
+  ks-lab list             List every lab
+  ks-lab update           Get the latest version of ks-lab
+
+Your lab folders live in: $KS_LABS
+
+EOF
+}
+
+list_labs() {
+cat <<'EOF'
+
+  00    Workstation ready (identity and settings)      00b  GitHub account linked
+  p1    Pre-lab: version chaos                          01   Put the platform scripts under version control
+  02    Review before you commit                        03   Who changed the VM size?
+  04    Add a monitoring script on a feature branch     05   Merge it and clean up
+  p3    Pre-lab: your first conflict (look, then abort) 06   Two engineers, one tag block
+  c1    Stage gate: two tickets, one afternoon          07a-07e  The undo ladder (five steps)
+  08    Publish the repo without leaking anything       09   Day one in an unfamiliar repo
+  10    Main moved while you were working               11   The urgent hotfix
+  12    First PR, and the review that follows           13   Contribute to a repo you don't own
+  14    Release v1.0.0 of the storage module            b1   Bonus: squash a messy history
+  b2    Bonus: hotfix on the wrong branch               final  Final practical assessment
+  break 1-12   Break Room troubleshooting scenarios
+
+EOF
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  start|check|hint|solution)
+    [ -n "${1:-}" ] || die "which lab? e.g. ks-lab $cmd 04"
+    lab=$(norm "$1")
+    has_fn "lab_${lab}_start" || die "there's no lab called '$1'. Run: ks-lab list"
+    case "$cmd" in
+      start)
+        state_set "attempts-$lab" 0; state_set "hints-$lab" 0
+        head1 "Setting up lab $lab"
+        "lab_${lab}_start"
+        ;;
+      check) "lab_${lab}_check" ;;
+      hint)
+        n=$(state_inc "hints-$lab")
+        h=$("lab_${lab}_hints" | sed -n "${n}p")
+        if [ -z "$h" ]; then
+          say ""; say "  No more hints for lab $lab. After two checks,  ks-lab solution $lab  is unlocked."; say ""
+        else
+          say ""; say "  Hint $n: $h"; say ""
+        fi
+        ;;
+      solution)
+        a=$(state_get "attempts-$lab" 0); p=$(state_get "passed-$lab" 0)
+        if [ "$a" -ge 2 ] || [ "$p" = "1" ]; then "lab_${lab}_solution"
+        else
+          say ""; say "  The walkthrough unlocks after you've run  ks-lab check $lab  twice."
+          say "  Getting stuck and working it out is where the learning happens. Try  ks-lab hint $lab  first."; say ""
+        fi
+        ;;
+    esac
+    ;;
+  break)
+    [ -n "${1:-}" ] || die "which scenario? e.g. ks-lab break 3"
+    lab=$(norm "t$1"); has_fn "lab_${lab}_start" || die "Break Room scenarios are 1 to 12"
+    state_set "attempts-$lab" 0; state_set "hints-$lab" 0
+    head1 "Break Room scenario ${1}"
+    "lab_${lab}_start"
+    ;;
+  event)
+    ev=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
+    has_fn "event_${ev}" || die "unknown event '${1:-}'"
+    "event_${ev}"
+    ;;
+  list) list_labs ;;
+  update)
+    git -C "$KS_APP" pull -q --ff-only && say "ks-lab is up to date." || die "update failed. Re-run the install command."
+    ;;
+  version|--version|-v) say "ks-lab $KS_VERSION" ;;
+  ""|help|-h|--help) usage ;;
+  *) die "unknown command '$cmd'. Run: ks-lab help" ;;
+esac

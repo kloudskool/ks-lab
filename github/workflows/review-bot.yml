@@ -1,0 +1,27 @@
+name: Review bot
+
+# Plays the senior engineer who reviews your PLAT-045 and PLAT-101 pull requests.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: startsWith(github.head_ref, 'feature/PLAT-045-') || startsWith(github.head_ref, 'feature/PLAT-101-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Review the pull request
+        run: node .github/ks-lab/review-bot.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
