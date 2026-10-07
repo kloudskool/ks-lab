@@ -154,7 +154,7 @@ commits_mixing_areas() {   # prints count of commits touching both scripts/ and 
   done
   printf '%s' "$n"
 }
-only_scratch_untracked() { [ "$(git status --porcelain)" = "?? scratch-notes.txt" ]; }
+only_scratch_untracked() { [ "$(ks_porcelain)" = "?? scratch-notes.txt" ]; }
 authors_match() {
   local want; want=$(git config user.email)
   [ -z "$(git log --format=%ae | grep -vxF "$want")" ]

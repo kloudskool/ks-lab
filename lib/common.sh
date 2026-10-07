@@ -193,7 +193,9 @@ check_end() {   # check_end <lab> [local-only-note]
 # ---------- small predicates for checks ----------
 is_repo()            { git rev-parse --git-dir >/dev/null 2>&1; }
 on_branch()          { [ "$(git symbolic-ref --short HEAD 2>/dev/null)" = "$1" ]; }
-clean_tree()         { [ -z "$(git status --porcelain)" ]; }
+# macOS Finder drops .DS_Store files into any folder it opens (lessons 306/307 show this). Never fail a check on them.
+ks_porcelain()       { git status --porcelain | grep -vE '[ /]\.DS_Store$'; }
+clean_tree()         { [ -z "$(ks_porcelain)" ]; }
 no_markers()         { ! git grep -qE '^(<<<<<<<|=======$|>>>>>>>)' -- . 2>/dev/null; }
 no_merge_in_progress(){ [ ! -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; }
 branch_exists()      { git show-ref -q --verify "refs/heads/$1"; }
