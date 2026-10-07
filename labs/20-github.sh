@@ -78,7 +78,7 @@ lab_08_hints() {
 cat <<'EOF'
 .gitignore only affects files Git isn't already tracking. Run git status after creating it: what's still showing?
 You need to tell Git to stop tracking a file, without deleting it from your disk. Look at the options of git rm.
-git rm --cached terraform/terraform.tfstate. Then git remote add origin <url> and git push -u origin main.
+git rm --cached terraform/terraform.tfstate. Then, as in lesson 329: git remote add origin <url> and git push -u origin main. Your token needs the repo AND workflow scopes.
 EOF
 }
 lab_08_solution() {
@@ -313,9 +313,9 @@ lab_11_check() {
 }
 lab_11_hints() {
 cat <<'EOF'
-Which changes does git stash take by default? Run git status after stashing and look.
-Untracked (new) files need an option to be stashed.
-git stash push -u -m "PLAT-045 WIP", then git switch main, git switch -c hotfix/PLAT-046-health-url. Afterwards git stash pop.
+Which changes does a plain stash take? Stash, then look at Source Control or git status: is the new file still there?
+New (untracked) files need the Include Untracked option: in VS Code it's Stash > Stash (Include Untracked).
+Stash (Include Untracked), or git stash push -u. Then switch to main and create hotfix/PLAT-046-health-url. Afterwards Pop Stash (lesson 330), or git stash pop.
 EOF
 }
 lab_11_solution() {
@@ -495,8 +495,8 @@ lab_14_check() {
 }
 lab_14_hints() {
 cat <<'EOF'
-There are two kinds of tag. One stores a message, an author and a date. Releases use that kind.
-git tag -a v1.0.0 -m "..." on the right commit. Then push it: tags don't go up with git push.
+Lesson 333: an annotated tag (-a) stores a message, author and date. A bug fix bumps the last number.
+git pull main first, then git tag -a v1.0.0 -m "...". Tags don't go up with a plain git push.
 git push origin v1.0.0. On GitHub: Releases > Draft a new release > choose the tag.
 EOF
 }

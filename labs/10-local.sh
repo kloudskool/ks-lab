@@ -539,8 +539,8 @@ lab_05_check() {
 lab_05_hints() {
 cat <<'EOF'
 You merge INTO the branch you're on. Switch to main first.
-A fast-forward is only possible when main hasn't moved since the branch started. When an editor opens for the merge message, save and close it.
-git branch -d deletes merged branches and refuses unmerged ones. -D forces it: only for work you mean to throw away. git branch -m old new renames.
+A fast-forward is only possible when main hasn't moved since the branch started (lesson 314). For a three-way merge Git opens a message tab in VS Code: close the tab to finish the merge.
+git branch -d deletes merged branches and refuses unmerged ones; -D (lesson 313) forces it, only for work you mean to throw away. git branch -m old new renames (lesson 318).
 EOF
 }
 lab_05_solution() {
@@ -674,8 +674,8 @@ lab_06_check() {
 lab_06_hints() {
 cat <<'EOF'
 git status names the conflicted file, and the file that merged cleanly. Read it before you edit.
-Between <<<<<<< HEAD and ======= is main's version (it has Priya's tag). Between ======= and >>>>>>> is your branch. You can keep lines from both.
-Edit, save, git add the file, then git commit. git merge --abort takes you back to before the merge if you need a fresh go.
+VS Code labels main's side Current Change (it has Priya's tag) and your branch Incoming Change (lesson 317). Accept Both Changes leaves two owner lines: edit it so every tag appears once.
+Edit and save, stage the file (+ in Source Control), then commit. git merge --abort takes you back to before the merge if you need a fresh go.
 EOF
 }
 lab_06_solution() {
