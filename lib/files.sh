@@ -313,9 +313,11 @@ build_stage_D() {
 # ---------- reusable edits ----------
 # sed_replace <file> <literal-old> <literal-new>  (portable, no sed -i)
 sed_replace() {
-  local f="$1" old="$2" new="$3" tmp
-  tmp="$f.ks-tmp"
-  awk -v o="$old" -v n="$new" '{ i = index($0, o); if (i) { $0 = substr($0, 1, i-1) n substr($0, i+length(o)) } print }' "$f" > "$tmp" && cat "$tmp" > "$f" && rm -f "$tmp"
+  # Values go through the environment, not awk -v: macOS awk rejects -v values containing a newline.
+  local f="$1" tmp="$1.ks-tmp"
+  KS_OLD="$2" KS_NEW="$3" awk 'BEGIN { o = ENVIRON["KS_OLD"]; n = ENVIRON["KS_NEW"] }
+    { i = index($0, o); if (i) { $0 = substr($0, 1, i-1) n substr($0, i+length(o)) } print }' "$f" > "$tmp" && cat "$tmp" > "$f"
+  rm -f "$tmp"
 }
 
 add_readme_row() {   # add_readme_row <script> <purpose>  -> appends to the scripts table
