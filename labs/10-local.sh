@@ -217,8 +217,11 @@ echo "DEBUG here"'
   ticket PLAT-008.md <<'EOF'
 # PLAT-008  Raise the disk usage alert threshold
 
-The disk alert in scripts/check-disk.sh fires too often. Raise the threshold from 80% to 90%.
-Nothing else should change in this ticket.
+The disk alert in scripts/check-disk.sh fires too often. The threshold must go from 80% to 90%.
+
+STATUS: you've already made this change. check-disk.sh now says THRESHOLD=90.
+It isn't committed yet. Commit it, and only it: two other files changed while
+you were working, and neither change is wanted.
 EOF
   next_steps "$KS_REPO"
 }
