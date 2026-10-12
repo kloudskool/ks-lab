@@ -63,6 +63,24 @@ cat <<'EOF'
 EOF
 }
 
+# Where the student's terminal is. If ks-lab start moved that folder into the backup,
+# the terminal is now inside the old copy and nothing they do there reaches the lab.
+KS_USER_PWD="$(pwd -P 2>/dev/null || pwd)"; export KS_USER_PWD
+stale_cwd_warning() {
+  local b; b="$(cd "$KS_BACKUP" 2>/dev/null && pwd -P)" || return 0
+  case "$KS_USER_PWD/" in
+    "$b"/*)
+      local name; name="${KS_USER_PWD#"$b"/}"; name="${name%%/*}"; name=$(printf '%s' "$name" | sed -E 's/-[0-9]{8}-[0-9]{6}(-[0-9]+)?$//')
+      say ""
+      say "  !! Your terminal is inside an OLD BACKUP copy:"
+      say "       $KS_USER_PWD"
+      say "     Anything you run there is invisible to ks-lab. Move back into the lab folder:"
+      say ""
+      say "       cd $KS_LABS/$name"
+      say "" ;;
+  esac
+}
+stale_cwd_warning
 cmd="${1:-}"; shift || true
 case "$cmd" in
   start|check|hint|solution)

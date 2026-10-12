@@ -85,7 +85,14 @@ backup_dir() {   # move an existing folder into the backup area, never overwriti
   mkdir -p "$KS_BACKUP"
   local dest="$KS_BACKUP/$(basename "$1")-$(date +%Y%m%d-%H%M%S)" n=1
   while [ -e "$dest" ]; do dest="$KS_BACKUP/$(basename "$1")-$(date +%Y%m%d-%H%M%S)-$n"; n=$((n + 1)); done
+  local was_inside=""
+  case "${KS_USER_PWD:-}/" in "$(cd "$1" 2>/dev/null && pwd -P)"/*) was_inside=1 ;; esac
   mv "$1" "$dest" && say "  (your previous copy was moved to $dest)"
+  if [ -n "$was_inside" ]; then
+    say ""
+    say "  !! Your terminal was inside that folder, so it's now inside the backup copy."
+    say "     Run the cd command printed at the end before anything else."
+  fi
 }
 
 new_bare_remote() {   # new_bare_remote <name>  -> prints path
