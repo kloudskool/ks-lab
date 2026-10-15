@@ -323,7 +323,7 @@ lab_t09_check() {
   checkn "You're no longer detached" "switch to the branch" sh -c "git symbolic-ref -q HEAD"
   check_end t09
 }
-lab_t09_hints() { printf '%s\n' "Detached HEAD means you're on a commit, not on a branch. Your commits are only reachable from HEAD." "A branch created right now, here, makes them safe." "git switch -c fix/PLAT-068-https. Already left? git reflog shows the hash."; }
+lab_t09_hints() { printf '%s\n' "Detached HEAD means you're on a commit, not on a branch. Your commits are only reachable from HEAD." "A branch created right now, here, makes them safe." "git switch -c fix/PLAT-068-https-storage. Already left? git reflog shows the hash."; }
 lab_t09_solution() { say ""; say "  git switch -c fix/PLAT-068-https-storage"; say ""; say "  Already switched away? git reflog, find your last commit, git branch fix/PLAT-068-https-storage <hash>"; say ""; }
 
 # ---------- T10 PR has conflicts ----------

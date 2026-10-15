@@ -20,6 +20,19 @@ git_ver_ok() {
   [ "$maj" -gt 2 ] || { [ "$maj" -eq 2 ] && [ "$min" -ge 23 ]; }
 }
 gcfg() { git config --global --get "$1" 2>/dev/null; }
+editor_runs() {   # the first word of core.editor must be a command (or file) this shell can find
+  local e first; e=$(git config --get core.editor 2>/dev/null) || return 1
+  case "$e" in
+    \"*) first=${e#\"}; first=${first%%\"*} ;;
+    \'*) first=${e#\'}; first=${first%%\'*} ;;
+    *) first=${e%% *} ;;
+  esac
+  case "$first" in
+    *\\*) return 0 ;;                       # a Windows path: trust the Git for Windows installer
+    */*) [ -e "$first" ] ;;
+    *) command -v "$first" >/dev/null 2>&1 ;;
+  esac
+}
 lab_00_check() {
   check_begin 00
   checkn "Git is version 2.23 or newer" "update Git: brew upgrade git (macOS) or reinstall Git for Windows" git_ver_ok
@@ -32,6 +45,8 @@ lab_00_check() {
     test "$(gcfg pull.rebase)" = "false"
   checkn "An editor is set for commit and merge messages" "VS Code: git config --global core.editor \"code --wait\"   or nano: \"nano\"" \
     test -n "$(gcfg core.editor)"
+  checkn "Your editor command can actually be found" "Mac: in VS Code press Cmd+Shift+P, run 'Shell Command: Install code command in PATH', then open a new terminal" \
+    editor_runs
   check_end 00
 }
 lab_00_hints() {
