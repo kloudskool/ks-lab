@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ks-lab — KloudSkool Version Control labs.  https://github.com/kloudskool/ks-lab
+# ks-lab — KloudSkool labs (Version Control and Linux).  https://github.com/kloudskool/ks-lab
 KS_VERSION="1.0.0"
 
 # Resolve the app folder (works when called through PATH or a symlink).
@@ -19,6 +19,8 @@ norm() {  # normalise a lab id: "4" -> "04", "C1" -> "c1", "break 3" handled by 
   case "$id" in
     [0-9]) id="0$id" ;;
     t[0-9]) id="t0${id#t}" ;;
+    lx[0-9]) id="lx0${id#lx}" ;;
+    lxt[0-9]) id="lxt0${id#lxt}" ;;
     break-[0-9]|break-[0-9][0-9]) id="t$(printf '%02d' "${id#break-}")" ;;
   esac
   printf '%s' "$id"
@@ -28,14 +30,14 @@ has_fn() { type "$1" >/dev/null 2>&1; }
 usage() {
 cat <<EOF
 
-ks-lab $KS_VERSION — KloudSkool Version Control labs
+ks-lab $KS_VERSION — KloudSkool labs (Version Control and Linux)
 
   ks-lab start <lab>      Set up the starting state for a lab      e.g. ks-lab start 04
   ks-lab check <lab>      Check your work and get your completion code
   ks-lab hint <lab>       Show the next hint (one at a time)
   ks-lab solution <lab>   Walkthrough, unlocked after two checks
   ks-lab event <id>       Trigger a mid-lab event when the lab tells you to
-  ks-lab break <n>        Start Break Room scenario n (1-12)
+  ks-lab break <n>        Start Break Room scenario n (1-12, or lx1-lx12 for Linux)
   ks-lab list             List every lab
   ks-lab update           Get the latest version of ks-lab
 
@@ -115,7 +117,11 @@ case "$cmd" in
     ;;
   break)
     [ -n "${1:-}" ] || die "which scenario? e.g. ks-lab break 3"
-    lab=$(norm "t$1"); has_fn "lab_${lab}_start" || die "Break Room scenarios are 1 to 12"
+    case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
+      lx*) n="${1#[lL][xX]}"; lab=$(norm "lxt$n") ;;
+      *)   lab=$(norm "t$1") ;;
+    esac
+    has_fn "lab_${lab}_start" || die "Break Room scenarios are 1 to 12 (Git) or lx1 to lx12 (Linux)"
     state_set "attempts-$lab" 0; state_set "hints-$lab" 0
     head1 "Break Room scenario ${1}"
     "lab_${lab}_start"
@@ -125,7 +131,7 @@ case "$cmd" in
     has_fn "event_${ev}" || die "unknown event '${1:-}'"
     "event_${ev}"
     ;;
-  list) list_labs ;;
+  list) list_labs; lx_list ;;
   update)
     git -C "$KS_APP" pull -q --ff-only && say "ks-lab is up to date." || die "update failed. Re-run the install command."
     ;;

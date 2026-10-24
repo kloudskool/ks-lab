@@ -3,7 +3,11 @@
 set -e
 KS_ORG=kloudskool
 DEST="$HOME/.ks-lab/app"
-command -v git >/dev/null 2>&1 || { echo "Git isn't installed yet. Do lesson 302 (macOS) or 303 (Windows) first."; exit 1; }
+if ! command -v git >/dev/null 2>&1; then
+  if [ "$(uname)" = "Linux" ]; then echo "Git isn't installed yet. Run:  sudo apt update && sudo apt install -y git  then run this installer again."
+  else echo "Git isn't installed yet. Do lesson 302 (macOS) or 303 (Windows) first."; fi
+  exit 1
+fi
 if [ -d "$DEST/.git" ]; then
   git -C "$DEST" pull -q --ff-only
 else
