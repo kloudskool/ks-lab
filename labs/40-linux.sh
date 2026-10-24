@@ -108,7 +108,7 @@ EOF
 lab_lx01_start() {
   lx_need_linux
   lx_fresh web01
-  mkdir -p app/current config releases/v1.0 releases/v1.1 releases/v1.2 var/log scripts
+  mkdir -p app/current config releases/v1.0 releases/v1.1 releases/v1.2 logs scripts
   printf '#!/bin/bash\necho "Starting the NovaTech web app"\n' > app/start.sh
   printf '# NovaTech web app\nStart it with app/start.sh\n' > app/README.md
   printf 'v1.2.0\n' > app/current/VERSION
@@ -119,17 +119,19 @@ lab_lx01_start() {
   printf '#!/bin/bash\necho "app v1.1"\n' > releases/v1.1/app.sh
   printf '#!/bin/bash\necho "app v1.2"\n' > releases/v1.2/app.sh
   printf 'v1.2: faster start-up\nv1.1: new logo\nv1.0: first release\n' > releases/release-notes.txt
-  filler 48213 '10.0.0.7 - - "GET / HTTP/1.1" 200 512' > var/log/access.log
-  filler 9050  'INFO request handled' > var/log/app.log
-  filler 1200  'WARN slow response' > var/log/error.log
+  filler 48213 '10.0.0.7 - - "GET / HTTP/1.1" 200 512' > logs/access.log
+  filler 9050  'INFO request handled' > logs/app.log
+  filler 1200  'WARN slow response' > logs/error.log
   printf '#!/bin/bash\necho "backing up web01"\n' > scripts/backup.sh
   ticket LX01.md <<'EOF'
 # LX01: First day on web01
 
 Your lead wants to know you can find your way around web01 before you touch anything.
-Explore ~/kloudskool-labs/web01 with pwd, cd and ls, and answer the questions on the lab page.
+Explore ~/kloudskool-labs/web01 with pwd, cd and ls, and answer the six questions on the lab page.
 Don't create, change or delete anything.
-When you've found the folder that holds a hidden file, cd into it and run: ks-lab check lx01
+
+One file somewhere inside web01 is hidden. Last step: cd into the folder that holds it,
+then run  ks-lab check lx01  from there. The check looks at which folder your terminal is in.
 EOF
   next_steps "$(lx_path web01)"
 }
@@ -137,15 +139,15 @@ lab_lx01_check() {
   check_begin lx01
   local w; w=$(lx_path web01)
   checkn "web01 is still there, untouched" "run ks-lab start lx01 to put it back. This lab is look, don't touch" \
-    sh -c "test -f '$w/config/.env.production' && test -d '$w/releases/v1.0' && test -f '$w/var/log/access.log'"
-  checkn "Your terminal is in the folder that holds the hidden file" "ls -a shows hidden files. cd into the folder that has one, then check again from there" \
+    sh -c "test -f '$w/config/.env.production' && test -d '$w/releases/v1.0' && test -f '$w/logs/access.log'"
+  checkn "Your terminal is in the folder that holds the hidden file" "your terminal is in $KS_USER_PWD. Use ls -a in each web01 folder to find the hidden file, cd into that folder, and run the check again from there" \
     user_pwd_is "$w/config"
   check_end lx01
 }
 lab_lx01_hints() {
 cat <<'EOF'
 pwd tells you where you are. cd ~/kloudskool-labs/web01 takes you to the server folder. ls shows what's there.
-ls -l marks folders with a d at the start of the line and shows each file's size. ls -a also shows hidden files: their names start with a dot.
+ls -l marks folders with a d at the start of the line and shows each file's size. ls -a also shows hidden files: their names start with a dot. Try ls -a in each of web01's folders.
 The hidden file is in web01/config. cd ~/kloudskool-labs/web01/config, then run ks-lab check lx01 from there.
 EOF
 }
@@ -153,9 +155,9 @@ lab_lx01_solution() {
 cat <<'EOF'
 
   cd ~/kloudskool-labs/web01
-  ls                       # app  config  releases  scripts  var
+  ls                       # app  config  logs  releases  scripts
   ls releases              # 4 items: release-notes.txt v1.0 v1.1 v1.2
-  ls -l var/log            # access.log is the biggest
+  ls -l logs               # access.log is the biggest
   ls -l app                # current starts with d: it's a folder
   ls -a config             # .env.production is hidden
   cd config
