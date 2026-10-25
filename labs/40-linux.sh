@@ -39,7 +39,7 @@ login_shell_has() {   # login_shell_has <command> <regex> : run in a fresh inter
 no_swap_files() { [ -z "$(find "$1" -name '.*.sw?' 2>/dev/null)" ]; }
 user_pwd_is() { [ "$(cd "$KS_USER_PWD" 2>/dev/null && pwd -P)" = "$(cd "$1" 2>/dev/null && pwd -P)" ]; }
 no_proc()     { ! pgrep -u "$(id -u)" -f "$1" >/dev/null 2>&1; }
-ssh_ok()      { ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -i "$1" "$USER@localhost" true >/dev/null 2>&1; }
+ssh_ok()      { test -f "$1" && ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -i "$1" "$USER@localhost" true >/dev/null 2>&1; }
 ssh_refused() { ! ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o IdentitiesOnly=yes -i "$1" "$USER@localhost" true >/dev/null 2>&1; }
 filler() { yes "$2" | head -c "$1"; }   # filler <bytes> <line> : a file of an exact size
 
@@ -584,7 +584,7 @@ event_lx07b() {
 lab_lx07_check() {
   check_begin lx07
   checkn "nginx is installed" "sudo apt update, then sudo apt install -y nginx" pkg_installed nginx
-  checkn "You ran the event (step 5)" "run: ks-lab event lx07b" test "$(state_get lx07-event 0)" = "1"
+  checkn "You ran the event (step 6)" "run: ks-lab event lx07b" test "$(state_get lx07-event 0)" = "1"
   checkn "The nginx service is running" "systemctl status nginx shows inactive (dead)? sudo systemctl start nginx" svc_active nginx
   checkn "The site shows: NovaTech web01 is up" "sudo nano /var/www/html/index.html, type the line, save. Then curl localhost" \
     page_has "NovaTech web01 is up"
@@ -787,11 +787,11 @@ lab_lx10_check() {
   check_begin lx10
   local old="$HOME/.ssh/id_ed25519" new="$HOME/.ssh/id_ed25519_new" ak="$HOME/.ssh/authorized_keys"
   checkn "The SSH server is installed" "sudo apt install -y openssh-server" pkg_installed openssh-server
-  checkn "The ssh service is running" "sudo systemctl start ssh" sh -c "systemctl is-active --quiet ssh || systemctl is-active --quiet sshd"
+  checkn "The ssh service is running" "sudo systemctl enable --now ssh" sh -c "systemctl is-active --quiet ssh || systemctl is-active --quiet ssh.socket || systemctl is-active --quiet sshd"
   checkn "Your first key pair exists" "ssh-keygen (press Enter for the default file)" sh -c "test -f '$old' && test -f '$old.pub'"
   checkn "Your new key pair exists" "ssh-keygen -f ~/.ssh/id_ed25519_new" sh -c "test -f '$new' && test -f '$new.pub'"
   checkn "The new public key is in authorized_keys" "ssh-copy-id -i ~/.ssh/id_ed25519_new.pub \$(whoami)@localhost" \
-    sh -c "grep -qF \"\$(cut -d' ' -f2 '$new.pub')\" '$ak'"
+    sh -c "test -s '$new.pub' && k=\$(cut -d' ' -f2 '$new.pub') && test -n \"\$k\" && grep -qF \"\$k\" '$ak'"
   checkn "The old public key is gone from authorized_keys" "nano ~/.ssh/authorized_keys and delete the line that matches ~/.ssh/id_ed25519.pub" \
     sh -c "test -f '$old.pub' && ! grep -qF \"\$(cut -d' ' -f2 '$old.pub')\" '$ak'"
   checkn "The new key logs you in" "ssh -i ~/.ssh/id_ed25519_new \$(whoami)@localhost" ssh_ok "$new"
