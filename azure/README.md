@@ -38,7 +38,8 @@ ks-lab az status               # any lab resource groups still in the subscripti
 
 ## Notes
 
-- `KS_REGION` overrides the default region (`uksouth`), for example `KS_REGION=ukwest ks-lab az break nsg-unreachable`.
+- `KS_REGION` overrides the default region (`uksouth`) for labs without VMs, for example `KS_REGION=ukwest ks-lab az break storage-403`.
+- Labs that create VMs (`nsg-unreachable`) default to `eastus`, because UK South VM capacity is often unavailable on free and student subscriptions. Override with `KS_VM_REGION`, for example `KS_VM_REGION=eastus2 ks-lab az break nsg-unreachable`.
 - `storage-403` creates its account outside Cloud Shell's region, because storage IP rules don't apply to same-region traffic. Its check briefly adds Cloud Shell's IP to read the container, then removes it.
 - `policy-tag-deny` waits (up to 20 minutes) until the policy is enforcing before handing over.
 - Completion codes are deterministic per subscription and lab: `KS-AZ-<LAB>-<8 hex>`.

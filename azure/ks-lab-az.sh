@@ -12,6 +12,9 @@
 set -uo pipefail
 
 KS_REGION="${KS_REGION:-uksouth}"
+# Labs that deploy VMs use their own region: VM capacity in UK South is often
+# unavailable on free and student subscriptions, so these default to East US.
+KS_VM_REGION="${KS_VM_REGION:-eastus}"
 KS_STATE_DIR="${HOME}/.kslab/az"
 mkdir -p "$KS_STATE_DIR"
 
@@ -52,7 +55,12 @@ load_state() {
     lock-scopelocked) RG="rg-nova-test-uks-001";     SA="stnovatest$s" ;;
     policy-tag-deny)  RG="rg-nova-statements-uks-001" ;;
     kv-reference)     RG="rg-nova-portal-uks-001";   KV="kv-nova-portal-$s"; APP="app-nova-portal-$s" ;;
-    nsg-unreachable)  RG="rg-nova-intranet-uks-001"; PIP="pip-nova-intranet-uks-001"; NIC="nic-nova-intranet-uks-001" ;;
+    nsg-unreachable)
+      RG="rg-nova-intranet-eus-001"; PIP="pip-nova-intranet-eus-001"; NIC="nic-nova-intranet-eus-001"; VNET="vnet-nova-intranet-eus-001"
+      # Environment built before the move to East US (older UK South names)?
+      if [ ! -f "$f" ] && ! az group show -n "$RG" -o none 2>/dev/null && az group show -n rg-nova-intranet-uks-001 -o none 2>/dev/null; then
+        RG="rg-nova-intranet-uks-001"; PIP="pip-nova-intranet-uks-001"; NIC="nic-nova-intranet-uks-001"; VNET="vnet-nova-intranet-uks-001"
+      fi ;;
   esac
   # shellcheck disable=SC1090
   [ -f "$f" ] && . "$f"
@@ -405,27 +413,27 @@ NSG_SUBNET=nsg-nova-web-subnet
 NSG_NIC=nsg-nova-intranet-nic
 
 nsg_break() {
-  local lab=nsg-unreachable rg=rg-nova-intranet-uks-001 vnet=vnet-nova-intranet-uks-001
-  local pip=pip-nova-intranet-uks-001 nic=nic-nova-intranet-uks-001 vm=vm-nova-intranet-uks-001
-  step "Creating $rg in $KS_REGION"
-  az group create -n "$rg" -l "$KS_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the resource group."
+  local lab=nsg-unreachable rg=rg-nova-intranet-eus-001 vnet=vnet-nova-intranet-eus-001
+  local pip=pip-nova-intranet-eus-001 nic=nic-nova-intranet-eus-001 vm=vm-nova-intranet-eus-001
+  step "Creating $rg in $KS_VM_REGION"
+  az group create -n "$rg" -l "$KS_VM_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the resource group."
   step "Creating the subnet NSG (allows HTTP from the internet)"
-  az network nsg create -g "$rg" -n "$NSG_SUBNET" -l "$KS_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the subnet NSG."
+  az network nsg create -g "$rg" -n "$NSG_SUBNET" -l "$KS_VM_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the subnet NSG."
   az network nsg rule create -g "$rg" --nsg-name "$NSG_SUBNET" -n Allow-HTTP-Internet --priority 200 --direction Inbound \
     --access Allow --protocol Tcp --source-address-prefixes Internet --destination-port-ranges 80 -o none
   step "Creating the network"
-  az network vnet create -g "$rg" -n "$vnet" -l "$KS_REGION" --address-prefixes 10.40.0.0/16 \
+  az network vnet create -g "$rg" -n "$vnet" -l "$KS_VM_REGION" --address-prefixes 10.40.0.0/16 \
     --subnet-name snet-web --subnet-prefixes 10.40.1.0/24 --network-security-group "$NSG_SUBNET" --tags "$(tags $lab)" -o none || die "Couldn't create the VNet."
   step "Creating the network interface NSG"
-  az network nsg create -g "$rg" -n "$NSG_NIC" -l "$KS_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the NIC NSG."
+  az network nsg create -g "$rg" -n "$NSG_NIC" -l "$KS_VM_REGION" --tags "$(tags $lab)" -o none || die "Couldn't create the NIC NSG."
   az network nsg rule create -g "$rg" --nsg-name "$NSG_NIC" -n Allow-HTTP --priority 300 --direction Inbound \
     --access Allow --protocol Tcp --source-address-prefixes Internet --destination-port-ranges 80 -o none
   az network nsg rule create -g "$rg" --nsg-name "$NSG_NIC" -n Deny-HTTP-PenTest --priority 100 --direction Inbound \
     --access Deny --protocol Tcp --source-address-prefixes '*' --destination-port-ranges 80 \
     --description "Temporary: block web traffic during the pen test. Remove afterwards. J. Patel" -o none
   step "Creating the public IP and network interface"
-  az network public-ip create -g "$rg" -n "$pip" -l "$KS_REGION" --sku Standard --allocation-method Static --tags "$(tags $lab)" -o none || die "Couldn't create the public IP."
-  az network nic create -g "$rg" -n "$nic" -l "$KS_REGION" --vnet-name "$vnet" --subnet snet-web \
+  az network public-ip create -g "$rg" -n "$pip" -l "$KS_VM_REGION" --sku Standard --allocation-method Static --tags "$(tags $lab)" -o none || die "Couldn't create the public IP."
+  az network nic create -g "$rg" -n "$nic" -l "$KS_VM_REGION" --vnet-name "$vnet" --subnet snet-web \
     --network-security-group "$NSG_NIC" --public-ip-address "$pip" --tags "$(tags $lab)" -o none || die "Couldn't create the network interface."
   local ci; ci=$(mktemp)
   cat > "$ci" <<'CLOUD'
@@ -442,19 +450,19 @@ CLOUD
   step "Creating the web server VM (a few minutes)"
   local size ok=0
   for size in Standard_B1s Standard_B2ats_v2 Standard_B1ms; do
-    if az vm create -g "$rg" -n "$vm" -l "$KS_REGION" --nics "$nic" --image Ubuntu2204 --size "$size" \
+    if az vm create -g "$rg" -n "$vm" -l "$KS_VM_REGION" --nics "$nic" --image Ubuntu2204 --size "$size" \
         --admin-username novaadmin --generate-ssh-keys --custom-data "$ci" --tags "$(tags $lab)" -o none 2>/dev/null; then
       ok=1; break
     fi
-    note "Size $size isn't available to you in $KS_REGION. Trying the next one."
+    note "Size $size isn't available to you in $KS_VM_REGION. Trying the next one."
   done
   rm -f "$ci"
-  [ "$ok" -eq 1 ] || die "Couldn't create the VM in $KS_REGION. Try another region: KS_REGION=ukwest ks-lab az break $lab"
+  [ "$ok" -eq 1 ] || die "Couldn't create the VM in $KS_VM_REGION. Try another region: KS_VM_REGION=eastus2 ks-lab az break $lab"
   az vm auto-shutdown -g "$rg" -n "$vm" --time 1900 -o none 2>/dev/null || note "Couldn't set auto-shutdown. Remember to clean up."
   step "Waiting for the web server to finish installing"
   az vm run-command invoke -g "$rg" -n "$vm" --command-id RunShellScript --scripts "cloud-init status --wait >/dev/null; systemctl is-active nginx" -o none 2>/dev/null \
     || note "Couldn't confirm the web server is ready. Give it two minutes before testing."
-  save_state "$lab" "RG=$rg" "VM=$vm" "PIP=$pip" "NIC=$nic"
+  save_state "$lab" "RG=$rg" "VM=$vm" "PIP=$pip" "NIC=$nic" "VNET=$vnet"
   say ""
   say "${B}Environment ready.${R} VM: ${B}$vm${R}  Public IP: ${B}$(az network public-ip show -g "$rg" -n "$pip" --query ipAddress -o tsv)${R}"
   say "See the problem in the portal: Virtual machines > $vm > Overview. Open http://<public IP> in a new tab."
@@ -485,7 +493,7 @@ nsg_check() {
 
   # 1. both NSGs still attached
   local snsg nnsg
-  snsg=$(az network vnet subnet show -g "$RG" --vnet-name vnet-nova-intranet-uks-001 -n snet-web --query networkSecurityGroup.id -o tsv 2>/dev/null)
+  snsg=$(az network vnet subnet show -g "$RG" --vnet-name "${VNET:-${RG/rg-/vnet-}}" -n snet-web --query networkSecurityGroup.id -o tsv 2>/dev/null)
   nnsg=$(az network nic show -g "$RG" -n "$NIC" --query networkSecurityGroup.id -o tsv 2>/dev/null)
   [[ "${snsg,,}" == *"/${NSG_SUBNET,,}" ]] && pass "The subnet NSG is still attached" || fail "The subnet NSG ($NSG_SUBNET) is no longer attached to snet-web. Put it back"
   [[ "${nnsg,,}" == *"/${NSG_NIC,,}" ]] && pass "The network interface NSG is still attached" || fail "The network interface NSG ($NSG_NIC) is no longer attached. The fix is a rule change, not removing the NSG"
@@ -610,7 +618,7 @@ main() {
     nsg-unreachable)  fn=nsg ;;
     *) die "Unknown lab '$lab'. Run: ks-lab az list" ;;
   esac
-  [ "$verb" = "break" ] && say "${D}Subscription: $KS_SUB_NAME  Region: $KS_REGION${R}"
+  [ "$verb" = "break" ] && { r=$KS_REGION; [ "$lab" = "nsg-unreachable" ] && r=$KS_VM_REGION; say "${D}Subscription: $KS_SUB_NAME  Region: $r${R}"; }
   "${fn}_${verb}"
   [ "$verb" = "break" ] && print_task "$lab"
   return 0
